@@ -2,11 +2,11 @@
 from gpiozero import PWMOutputDevice, DigitalOutputDevice, Servo 
  
  
-# GPIOを設定してね 
-MOTOR_ENA_PIN =  
-MOTOR_IN1_PIN =  
-MOTOR_IN2_PIN =  
-SERVO_PIN =  
+# GPIOを設定してね (Example default pins)
+MOTOR_ENA_PIN = 12
+MOTOR_IN1_PIN = 16
+MOTOR_IN2_PIN = 20
+SERVO_PIN = 21
  
  
 # DCモーター 

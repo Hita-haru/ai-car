@@ -17,14 +17,14 @@ def main():
 def pingEsp(count):
     print("---ESP32 ping tool---")
     error = 0
-    for i in range(count - 1):
+    for i in range(count):
         msg = f"Ping from raspberry pi [{i}]\n"
         ser.write(msg.encode('utf-8'))
         print(f"Message sent [{i}]")
         if ser.in_waiting > 0:
             response = ser.readline().decode('utf-8', errors='ignore').strip()
             print(f"Responce: {response}")
-            if response != f"ACK Received data: Ping from raspberry pi [{i}]\n":
+            if response != f"ACK Received data: Ping from raspberry pi [{i}]":
                 error += 1
         time.sleep(2)
     print(f"Sent messages: {count} Errors: {error}")
