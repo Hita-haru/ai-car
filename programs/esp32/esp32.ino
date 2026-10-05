@@ -10,14 +10,14 @@
 #define SPI_CS 5
 
 #define CHUNKSIZE 4096
-#define SERVER_URL <Input server URL here>
+#define SERVER_URL "http://example.com/sendimg/"
 
-WORD_ALIGNED_ATTR uint8_t rx_buf[SPI_CHUNKSIZE];
+WORD_ALIGNED_ATTR uint8_t rx_buf[CHUNKSIZE];
 
 // Prototype Declaration
 uint8_t xor_checksum(const uint8_t* data, size_t length);
 void defrost_json(const char* input_json);
-void request_resend_spi(const int 
+void request_resend_spi(const int chunk_id);
 
 void setup() {
   Serial.begin(115200);
@@ -61,7 +61,7 @@ void loop() {
     if (error) {
       Serial.println("[Error] Json parse failed");
     }
-    const int rec_type = doc["header"]["type"] | -1;
+    const int rec_type = received_doc["header"]["type"] | -1;
     if (rec_type == -1) {
       Serial.println("[Error] Key \"type\" is NOT found");
     }
