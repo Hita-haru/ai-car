@@ -11,10 +11,9 @@
 ```mermaid
 flowchart TD
 subgraph machine[車両本体]
-    subgraph rasp[Raspberry Pi Zero]
-        raspsoc[SoC] --> dcmotor[走行用DCモーター]
-        raspsoc --> servomotor[方向転換用サーボモーター]
-    end
+    rasp[Raspberry Pi Zero]
+    rasp --> dcmotor[走行用DCモーター]
+    rasp --> servomotor[方向転換用サーボモーター]
     esp[ESP32]
     cam[カメラ] --> rasp
     sensor[センサー] -.->|追加予定| rasp
