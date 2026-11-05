@@ -32,27 +32,27 @@
 
 ```mermaid
 flowchart TD
-    subgraph Vehicle[車両本体 (エッジシステム)]
-        subgraph RPi[Raspberry Pi Zero - Master]
-            cam[USBカメラ (Logicool C270n)] -->|OpenCV キャプチャ| rpi_core[RPi 制御コア]
-            rpi_core -->|PWM/GPIO制御| dcmotor[駆動用 DCモーター (R380)]
-            rpi_core -->|PWM制御 0〜180°| servomotor[操舵用 サーボモーター (MG90S)]
+    subgraph Vehicle["車両本体 (エッジシステム)"]
+        subgraph RPi["Raspberry Pi Zero - Master"]
+            cam["USBカメラ (Logicool C270n)"] -->|OpenCV キャプチャ| rpi_core["RPi 制御コア"]
+            rpi_core -->|PWM/GPIO制御| dcmotor["駆動用 DCモーター (R380)"]
+            rpi_core -->|PWM制御 0〜180°| servomotor["操舵用 サーボモーター (MG90S)"]
         end
         
-        subgraph ESP[ESP32 CH340C - Slave]
-            esp_core[ESP32 通信中継コア]
+        subgraph ESP["ESP32 CH340C - Slave"]
+            esp_core["ESP32 通信中継コア"]
         end
         
-        rpi_core <==>|独自SPIパケット (MSprotocol)<br/>INI / STR / FIN / ACK| esp_core
+        rpi_core <-->|"独自SPIパケット (MSprotocol)<br/>INI / STR / FIN / ACK"| esp_core
     end
     
-    subgraph ServerCloud[外部サーバー / クラウド]
-        server[FastAPI 高速通信サーバー<br/>Port: 8000 (Async + orjson)]
-        gemini[Google Gemini Robotics ER 2 preview<br/>(Low-Latency VLM Engine)]
+    subgraph ServerCloud["外部サーバー / クラウド"]
+        server["FastAPI 高速通信サーバー<br/>Port: 8000 (Async + orjson)"]
+        gemini["Google Gemini Robotics ER 2 preview<br/>(Low-Latency VLM Engine)"]
     end
     
-    esp_core <==>|リアルタイム WebSocket通信<br/>/ws/control (Base64 JPEG & JSON)| server
-    server <==>|非同期推論リクエスト<br/>(google-genai aio SDK)| gemini
+    esp_core <-->|"リアルタイム WebSocket通信<br/>/ws/control (Base64 JPEG & JSON)"| server
+    server <-->|"非同期推論リクエスト<br/>(google-genai aio SDK)"| gemini
 
     classDef rpi fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px;
     classDef esp fill:#bbdefb,stroke:#1565c0,stroke-width:2px;
