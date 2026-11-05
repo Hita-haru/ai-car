@@ -1,6 +1,7 @@
+
 # AI Car Autonomous Driving Project (`ai-car`)
 
-> **Project:** 画像解析技術を用いた自律走行車両の開発 (AI Autonomous Car via image-language model)  
+> **プロジェクト:** 画像解析技術を用いた自律走行車両の開発 (AI Autonomous Car via image-language model)  
 > VLM: Gemini Robotics ER 2 preview + edge devices Raspberry Pi Zero (master, SPI master) and ESP32 CH340C (slave, SPI slave + WebSocket client). Camera video → real-time driving decisions.
 
 ---
@@ -18,7 +19,7 @@
 
 ## 2. Directory Layout
 
-```
+```text
 ai-car/
 ├── .git/                     # initialized repo, branch main (many sample hooks)
 ├── BOM.csv                   # Bill of Materials (items, qty, unit price, total ≈ ¥2767)
@@ -26,18 +27,35 @@ ai-car/
 ├── README.md                 # Project intro + system architecture mermaid flowchart
 ├── data-flowchart.md         # System data flow: camera → RPi; server ↔ ESP32; Google ER2 preview
 ├── 3d/                       # CAD / print files (FreeCAD): STL, STEP, 3MF for chassis, shafts, bearings, wheels, pulleys, drive parts
-├── receipt/                  # Purchase receipts: receipt1.png … receipt5.png
-├── programs/
-│   ├── esp32/
-│   │   └── esp32.ino         # ESP32 firmware test ping tool (.ino) — no motor logic yet
-│   ├── raspberry-pi-zero/
-│   │   ├── main.py           # Python control: pins, move_motor(), steer_motor(), stop_motors()
-│   │   ├── ik-motor.py       # gpiozero DC motor & servo setup (stub; pins unset)
-│   │   └── ys-camera.py      # Camera capture → 160×120 JPEG base64
-│   └── server/
-│       ├── main.py           # AI Car server: FastAPI, WebSocket /ws, HTTP POST /sendimg/ & /api/control
-│       ├── README.md         # Setup: venv, requirements.txt, .env copy, uvicorn start
-│       └── requirements.txt  # fastapi, uvicorn, websockets, google-genai, pydantic, python-dotenv, pillow, orjson
+├── receipt/
+│   ├── サーボモーター固定治具.3mf (11589 bytes)
+│   ├── サーボモーター固定治具.FCStd (33790 bytes)
+│   ├── シャーシ前.step (1481 lines)
+│   ├── シャーシ後ろ.step (930 lines)
+│   ├── ベアリング.3mf (198912 bytes)
+│   ├── ベアリング.FCStd (24656 bytes)
+│   ├── ベアリング2.3mf (51615 bytes)
+│   ├── ベアリング2.FCStd (61588 bytes)
+│   ├── ベアリング部品.3mf (13448 bytes)
+│   ├── ベアリング部品.FCStd (217796 bytes)
+│   ├── 前輪シャフト.3mf (5831 bytes)
+│   ├── 前輪シャフト.FCStd (41722 bytes)
+│   ├── 前輪プーリー.3mf (41500 bytes)
+│   ├── 前輪プーリー.FCStd (30834 bytes)
+│   ├── 前輪駆動部品.20260731-141154.FCBak (29617 bytes)
+│   ├── 前輪駆動部品.3mf (19721 bytes)
+│   ├── 前輪駆動部品.FCStd (40379 bytes)
+│   ├── 前輪駆動部品.stl (153684 bytes)
+│   ├── 前輪駆動部品2.3mf (29143 bytes)
+│   ├── 前輪駆動部品2.FCStd (41750 bytes)
+│   ├── 後輪シャフト.FCStd (24238 bytes)
+│   ├── 後輪シャフト.stl (138684 bytes)
+│   ├── 後輪タイヤ.3mf (195668 bytes)
+│   ├── 後輪タイヤ.FCStd (37945 bytes)
+│   ├── 後輪プーリー.3mf (12759 bytes)
+│   ├── 後輪プーリー.FCStd (37886 bytes)
+│   ├── 締結部品.3mf (2791 bytes)
+│   ├── 締結部品.FCStd (18802 bytes)
 └── requested-BOM.xlsx        # BOM spreadsheet (not inspected here)
 ```
 
@@ -94,7 +112,7 @@ Adjustable via `.env` or code; server's `get_system_instruction()` reflects them
 
 Master-Slave SPI between RPi Zero (**M**, master) and ESP32 (**S**, slave):
 
-```
+```text
 M --(CS low)--> S: INI
 S --> M: ACK
 loop until complete:
@@ -131,7 +149,7 @@ Failure modes (from `MSprotocol.md`):
 ```bash
 cd programs/server
 python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+source venv/bin/activate   # Windows: venv\Scriptsctivate
 pip install -r requirements.txt
 cp .env.example .env
 ```
@@ -206,8 +224,7 @@ Handle failsafe: on API-key missing or exception → `create_failsafe_response(.
 ### git の最新版との差分
 - リモート: `origin git@github.com:Hita-haru/ai-car.git`
 - 現在のブランチ `main`: `49e6b0c Merge pull request #5 from Hita-haru/docs/mid-plan` が最新。
-- `git status --porcelain` の結果: **origin/main と一致**（変更なし）。未コミットのファイルは `tai-car-summary.md`（書き込みミス）のみ。  
-- したがって、追跡済みファイルへの差分は空。新しいファイル `ai-car-summary.md` は未トラッキングなので、まだコミットされていない。
+- `git status --porcelain` の結果: **origin/main と一致**（変更なし）。未コミットのファイルは `tai-car-summary.md`（書き込みミス）のみ。  - したがって、追跡済みファイルへの差分は空。新しいファイル `ai-car-summary.md` は未トラッキングなので、まだコミットされていない。
 
 ## 10. スケジュール・ガントチャート
 
@@ -217,24 +234,24 @@ gantt
     dateFormat  YYYY-MM-DD
     axisFormat  %b %d
     section 準備 (Preparation)
-    BOM & 材料調達          : a1, 2026-10-01, 5d
-    README / MSprotocol / data-flowchart     : a2, after a1, 3d
+    BOM & 材料調達          : a1, 2026-10-01, 7d
+    README / MSprotocol / data-flowchart     : a2, after a1, 5d
     section サーバー開発
-    server/main.py 開発      : a3, after a2, 7d
-    esp32.ino 修正           : a4, after a2, 3d
-    ys-camera.py 実装        : a5, after a2, 4d
+    server/main.py 開発      : a3, after a2, 9d
+    esp32.ino 修正           : a4, after a2, 5d
+    ys-camera.py 実装        : a5, after a2, 6d
     section CAD / 3D プリント
-    3D CAD / 3MF 抽出        : a6, after a3, 7d
-    receipt/確認              : a7, after a5, 3d
+    3D CAD / 3MF 抽出        : a6, after a3, 9d
+    receipt/確認              : a7, after a5, 5d
     section 環境構築
-    venv 作成 & pip install   : a8, after a6, 2d
-    .env 設定                  : a9, after a8, 1d
-    uvicorn start              : a10, after a9, 1d
-    section ESP32 SPI ブリッジ: b1, after a10, 7d
-    Raspberry Pi カメラ実行   : b2, after b1, 1d
-    section 3D プリント & アセンブリ: b3, after b2, 5d
-    AI 推論統合 (google.genai.aio) : c1, after b3, 7d
-    テスト実行 & フェイルセーフ検証 : d1, after c1, 4d
+    venv 作成 & pip install   : a8, after a6, 4d
+    .env 設定                  : a9, after a8, 3d
+    uvicorn start              : a10, after a9, 3d
+    section ESP32 SPI ブリッジ: b1, after a10, 9d
+    Raspberry Pi カメラ実行   : b2, after b1, 3d
+    section 3D プリント & アセンブリ: b3, after b2, 7d
+    AI 推論統合 (google.genai.aio) : c1, after b3, 9d
+    テスト実行 & フェイルセーフ検証 : d1, after c1, 6d
 ```
 
 ---
@@ -252,4 +269,5 @@ gantt
 - [ ] テストパス実行 (0/0 パス → 後で実行)
 
 ---
+
 *作成日: 2026-11-04*
