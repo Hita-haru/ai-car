@@ -125,10 +125,44 @@ flowchart TD
   - コース周回走行（白線維持または障害物回避）を安全停止機能付きで達成できるか？
 
 ### 3.4 フォールバック戦略 (納期絶対死守のための迂回ルート)
-- **SPI開発難航時のフォールバック (Plan B - Direct Wi-Fi Route):**  
-  もし Day 6 時点で RPi ⇔ ESP32 間の独自SPI通信のデバッグが難航した場合、**Raspberry Pi Zero W のオンボード Wi-Fi を有効化し、RPi から直接 FastAPI サーバーへ WebSocket 接続する方式に即日切り替えます**。  
-  ※これにより、ESP32のSPIデバッグ停滞による自律走行テスト全体の破綻を100%防止できます（SPI連携は追加成果として後から統合可能）。
 
+Raspberry Pi Zero（無印）には Wi-Fi / Bluetooth が非搭載であるため、当初の「RPi Zero W 単体 Wi-Fi 案」は物理的に実行不可能です。また、**新規部品の発注には約1週間（7日）のリードタイムを要する試算**となるため、残余期間（約15日）において「部品調達待ち」を伴う案は時間的利益がマイナスとなり納期破綻を招きます。
+
+そのため、**「追加発注ゼロ（手持ち機材のみ）」かつ「時間的利益（工数削減効果）がプラス」となる代替フォールバック**を多層的に定義します。
+
+#### ■ フォールバック各案の時間的利益・トレードオフ総合評価（発注リードタイム1週間を考慮）
+
+| フォールバック案 | アプローチ概要 | 発注リードタイム | 工数削減 / 時間的利益 | 総合判定・採用方針 |
+|---|---|:---:|:---:|---|
+| **× USB Wi-Fiドングル増設案** | 小型ハブ＋Wi-Fiドングルを新規購入しRPiを無線化 | **約7日（1週間待ち）** | **マイナス（逆効果）**<br>部材到着（Day 8以降）まで統合停止 | **【不採用】** 納期バッファを消費し破綻リスク大。 |
+| **◎ Plan B (VLM主フォールバック):<br>ESP32単体制御 ＋ スマホ車載カメラ** | RPi ⇔ ESP32通信を全廃。手持ちスマホを車載カメラとし、推論結果をESP32が直接受信・駆動 | **0日 (即日)**<br>(手持ちスマホ活用) | **＋2〜3日 短縮**<br>エッジ間通信デバッグを完全スキップ | **【採用: VLM維持ルート】**<br>Gemini Robotics ER 2 preview による自律走行目標を維持しつつ最短開通。 |
+| **◎ Plan C (最終防衛フェイルセーフ):<br>RPi Zero ローカル OpenCV 自律走行** | クラウド・Wi-Fi・マイコン間通信を全廃。RPi Zero単体で白線/障害物をオフライン画像処理 | **0日 (即日)**<br>(手持ち機材のみ) | **＋5〜7日 短縮 (極大)**<br>通信・サーバー・AIの全不確実性を排除 | **【採用: 発表・完走絶対保証】**<br>通信途絶時のセーフティモードとして機能し、成果物ゼロを100%防止。 |
+
+---
+
+#### ■ 各フォールバックの詳細仕様
+
+1. **【Plan B】ESP32単体制御 ＋ スマートフォン車載カメラ（VLM自律走行 維持ルート）**
+   - **発動条件:** Day 6 時点で RPi ⇔ ESP32 間の通信（SPI/UART）デバッグが難航した場合。
+   - **システム構成:**
+     - 車両シャシー前部に手持ちのスマートフォンを車載固定（カメラ兼Wi-Fi中継）。
+     - スマホのブラウザまたはIPカメラ機能から、直接外部FastAPIサーバーへ画像送信。
+     - サーバー（Gemini VLM）の推論結果（`speed`, `angle`）を、Wi-Fi内蔵の **ESP32が直接WebSocket受信**。
+     - ESP32のGPIO（PWM）から Mini-L298N および MG90S サーボを直接制御（RPi Zero は車両から一時撤退）。
+   - **時間的利益:** マイコン間通信プロトコル（パケット分割・再送・パース）の開発工数をまるごと削減でき、**実質2〜3日のクリティカルパス短縮**を達成。
+
+2. **【Plan C】RPi Zero 完全ローカル自律走行（オフライン完走保証フェイルセーフ）**
+   - **発動条件:** Day 12 時点でネットワーク通信やGemini APIの安定性に懸念がある場合、または会場デモ時の通信遮断時。
+   - **システム構成:**
+     - ESP32、Wi-Fi、FastAPIサーバー、Gemini API をすべてバイパス。
+     - RPi Zero に接続した USBカメラ（C270n）の映像を、ローカルの Python + OpenCV で軽量二値化処理（白線検知 / 障害物輪郭抽出）。
+     - 重心偏差に基づく P制御（比例制御）で、`ik-motor.py` を呼び出してモーターとサーボを直接駆動。
+   - **工学的価値 & 時間的利益:**
+     - 「主機能: クラウド VLM (Gemini) による高度推論自律走行」
+     - 「自律防衛機能: 通信途絶・サーバーダウン時におけるエッジ単独ローカルフェイルセーフ走行」  
+     という**堅牢な多層防衛アーキテクチャ（フォールトトレラント設計）**として課題研究の発表価値を大幅に向上させます。
+     - 外部通信依存を完全に断ち切るため、**最低限「自律走行する車両」を確実に完成させる時間的利益（最大5〜7日の短縮）**を保証します。
+  
 ---
 
 ## 4. 高解像度スケジュール & ガントチャート (High-Resolution Schedule & Gantt Chart)
@@ -191,7 +225,7 @@ gantt
 | ゲート | 達成目標日 | 検証内容・合格基準 (Pass Criteria) | クリティカルパス |
 |:---:|:---:|---|:---:|
 | **Gate 1** | 2026-11-09 | **ハードウェア組立完了:** シャシーにベアリング、車軸、プーリー、モーター、サーボがガタつきなく固定され、電源系（3.7V/7.4V → 5V/7.2V）が正常出力されること。 | ★ Yes |
-| **Gate 2** | 2026-11-11 | **エッジ間通信確立:** RPi ZeroからESP32へSPIで画像データが送信され、チェックサムエラーなくJSONが復元されること（失敗時はPlan B直結Wi-Fiへ移行）。 | ★ Yes |
+| **Gate 2** | 2026-11-11 | **エッジ間通信確立:** RPi ZeroからESP32へSPIで画像データが送信され、チェックサムエラーなくJSONが復元されること（失敗時はPlan B: ESP32単体+スマホカメラへ即日移行）。 | ★ Yes |
 | **Gate 3** | 2026-11-09 | **サーバーAI準備完了:** モック画像に対してGemini Robotics ER 2 previewが0.4秒以内に操舵・速度JSONを返信すること。 | No (並行) |
 | **Gate 4** | 2026-11-14 | **E2Eクローズドループ開通:** 車載カメラ ➔ ESP32 ➔ サーバー ➔ モーター駆動が途切れず連続5分間ループ動作すること（車輪空転台上試験）。 | ★ Yes |
 | **Gate 5** | 2026-11-20 | **自律走行ミッション達成:** 実フロアにて障害物を回避し、コースを2周以上停止・衝突なしで完走できること。 | ★ Yes |
@@ -213,11 +247,11 @@ gantt
 - [x] 2.1 RPi側 カメラキャプチャ基本コード作成 (`ys-camera.py`)
 - [x] 2.2 RPi側 モーター制御ロジック基本関数作成 (`ik-motor.py`)
 - [ ] 2.3 `programs/raspberry-pi-zero/ik-motor.py` の GPIOピン番号定義 (ENA:12, IN1:5, IN2:6, SERVO:13)
-- [ ] 2.4 RPi側 SPI Master送信スクリプト (`raspi_spi_master.py`) の新規作成（`spidev` を用いた INI/STR/FIN パケット送出）
+- [ ] 2.4 RPi側 SPI Master送受信スクリプト (`Raspi_spi_master.py`) の完成（`spidev` を用いた INI/STR/FIN パケット送出、Handshakeピン監視によるSlave->Master ACK/制御値同期受信、`ACK_BUFFER_SIZE` 確定）
 - [ ] 2.5 `programs/esp32/esp32.ino` の構文エラー修正 (`SERVER_URL`, `request_resend_spi`, `CHUNKSIZE`)
 - [ ] 2.6 ESP32 への Wi-Fi接続機能および `WebSocketsClient` によるサーバー接続実装
-- [ ] 2.7 ESP32 側の SPI Slave 受信バッファおよび JSONパケット復元ロジック実装
-- [ ] 2.8 `MSprotocol.md` に基づくタイムアウト・再送シーケンス (STR損失時ACK要求) の組み込み
+- [ ] 2.7 ESP32 側の SPI Slave 受信バッファ (`rx_buf`)、送信バッファ (`tx_buf`)、Handshake信号線 (GPIO 22) 制御、および JSONパケット復元・ACK/制御値返信ロジック実装
+- [ ] 2.8 `MSprotocol.md` に基づく双方向タイムアウト・再送シーケンス (STR損失時ACK要求、Handshakeタイムアウト、S->Mフィードバック) の組み込み
 
 ### WP 3.0: サーバー & AI連携エンジン (Server & Cloud VLM)
 - [x] 3.1 FastAPI 非同期サーバー基盤実装 (`programs/server/main.py`)
@@ -244,23 +278,37 @@ gantt
 
 ## 6. ハードウェア仕様・電装・ピンアサイン設計 (Hardware & Electrical Engineering)
 
-### 6.1 マイコン・GPIO競合回避ピンアサイン表
+### 6.1 マイコン・GPIO競合回避ピンアサイン表 (双方向SPI & Handshake対応)
 
-Raspberry Pi Zero のハードウェア SPI0 (MOSI=10, MISO=9, SCLK=11, CE0=8) と UART (TXD=14, RXD=15) を保護し、ハードウェアPWM（または高精度タイマー）をモーターとサーボに割り振った競合のない完全なピンアサインです。
+Raspberry Pi Zero のハードウェア SPI0 (MOSI=10, MISO=9, SCLK=11, CE0=8) と UART (TXD=14, RXD=15) を保護し、ハードウェアPWM（または高精度タイマー）をモーターとサーボに割り振った競合のない完全なピンアサインです。  
+特に、**ESP32 (Slave) から RPi Zero (Master) への非同期データ送信・ACK返信・準備完了通知を確実に行うための「SPI Handshake (Ready) 信号線」** を定義しています。
 
-| デバイス | 信号名 | RPi Zero (BCMピン) | 物理ピン番号 | 接続先 / 機能詳細 |
-|---|---|:---:|:---:|---|
-| **SPI0 (Master)** | MOSI | GPIO 10 | Pin 19 | ESP32 GPIO 23 (VSPI MOSI) |
-| **SPI0 (Master)** | MISO | GPIO 9 | Pin 21 | ESP32 GPIO 19 (VSPI MISO) |
-| **SPI0 (Master)** | SCLK | GPIO 11 | Pin 23 | ESP32 GPIO 18 (VSPI SCLK) |
-| **SPI0 (Master)** | CS / CE0 | GPIO 8 | Pin 24 | ESP32 GPIO 5 (VSPI CS) |
-| **DCモーター** | PWM (ENA) | **GPIO 12** | Pin 32 | Mini-L298N ENA (PWM0 / 速度制御) |
-| **DCモーター** | IN1 | **GPIO 5** | Pin 29 | Mini-L298N IN1 (前進/後進方向制御) |
-| **DCモーター** | IN2 | **GPIO 6** | Pin 31 | Mini-L298N IN2 (前進/後進方向制御) |
-| **ステアリング** | SERVO_PWM | **GPIO 13** | Pin 33 | MG90S 信号線 (PWM1 / 50Hz舵角制御) |
-| **UART (デバッグ)**| TXD | GPIO 14 | Pin 8 | 予備シリアル通信・コンソール用 |
-| **UART (デバッグ)**| RXD | GPIO 15 | Pin 10 | 予備シリアル通信・コンソール用 |
-| **共通電源** | GND | GND | Pin 6/14/20/39 | システム共通グランド (Common GND) |
+| デバイス | 信号名 | 方向 | RPi Zero (BCM) | 物理ピン | ESP32 / 接続先 | 機能詳細・通信要件 |
+|---|---|:---:|:---:|:---:|---|---|
+| **SPI0 (Master/Slave)** | MOSI | **M → S** | GPIO 10 | Pin 19 | GPIO 23 (VSPI MOSI) | **Master → Slave 送信:** INI, STR, FIN 画像パケット転送 |
+| **SPI0 (Master/Slave)** | MISO | **S → M** | GPIO 9 | Pin 21 | GPIO 19 (VSPI MISO) | **Slave → Master 送信:** ACK, 再送要求, 推論制御値 (speed/angle) 返信 |
+| **SPI0 (Master/Slave)** | SCLK | **M → S** | GPIO 11 | Pin 23 | GPIO 18 (VSPI SCLK) | **SPI クロック:** S→Mデータ受信時もMasterがクロックを供給 |
+| **SPI0 (Master/Slave)** | CS / CE0 | **M → S** | GPIO 8 | Pin 24 | GPIO 4 (VSPI CS) | **チップセレクト:** Active LOW (転送セッション確立) |
+| **SPI Handshake** | **SPI_READY** | **S → M** | **GPIO 25** | **Pin 22** | **GPIO 22** | **Slave → Master 準備完了通知:** ESP32の受信/送信バッファ準備完了・ACK送出準備完了をMasterに通知 (Active HIGH) |
+| **DCモーター** | PWM (ENA) | M → 出力 | **GPIO 12** | Pin 32 | Mini-L298N ENA | 駆動モーター PWM0 速度制御 (0〜255) |
+| **DCモーター** | IN1 | M → 出力 | **GPIO 5** | Pin 29 | Mini-L298N IN1 | モーター回転方向制御 1 |
+| **DCモーター** | IN2 | M → 出力 | **GPIO 6** | Pin 31 | Mini-L298N IN2 | モーター回転方向制御 2 |
+| **ステアリング** | SERVO_PWM | M → 出力 | **GPIO 13** | Pin 33 | MG90S 信号線 | 操舵サーボ PWM1 舵角制御 (50Hz / 0〜180°) |
+| **UART (デバッグ)**| TXD | M → S/PC | GPIO 14 | Pin 8 | 予備シリアル TX | デバッグコンソール・シリアル通信 |
+| **UART (デバッグ)**| RXD | S/PC → M | GPIO 15 | Pin 10 | 予備シリアル RX | デバッグコンソール・シリアル通信 |
+| **共通電源** | GND | - | GND | Pin 6/14/20/39 | 全GNDピン | システム共通グランド (Common GND: 1点接地) |
+
+#### ■ Slave → Master (S → M) 通信を成立させるハードウェア・電気的要件
+1. **ロジック電圧レベルの整合性 (3.3V直結):**
+   - Raspberry Pi Zero および ESP32 CH340C はともに **3.3V LVCMOS ロジック** で駆動するため、MOSI/MISO/SCLK/CS/Handshake 全ての信号線においてレベルシフタは不要であり、直結が可能です（5V駆動素子とは接続不可）。
+2. **Handshake (SPI_READY) ピンによる非同期同期化:**
+   - SPIプロトコルの物理的制約上、スレーブ（ESP32）は自発的にSCLKクロックを発振してデータを送り出すことができません。
+   - ESP32のDMA受信・送信バッファ（`spi_slave_transmit`）が準備完了したこと、あるいはサーバーからの推論結果を受信してMasterへ返送するACK/制御データが整ったことをMasterに知らせるため、**ESP32 GPIO 22 → RPi Zero GPIO 25 (Pin 22) の Handshake 信号線** を使用します。
+   - RPi Zero 側は内蔵プルダウン（Pull-down）を設定し、ESP32が準備完了時に HIGH を出力、Masterは割り込み（エッジ検出）またはポーリングで HIGH を検知してからSPIクロック供給を開始します。
+3. **MISO ラインのフローティング防止:**
+   - ESP32が非選択（CS=HIGH）時、MISO端子はHigh-Z（ハイインピーダンス）状態となります。不定状態によるノイズ誤認識を防ぐため、RPi側のGPIO 9 (MISO) には内部プルアップを適用します。
+4. **共通グランド (Common GND) の低インピーダンス接続:**
+   - 高速SPI信号（1MHz〜10MHz）およびPWM信号のリターン電流によるグラウンドループ障害を防ぐため、RPi Zero と ESP32 の GND 端子同士を太径ワイヤで最短接続します。
 
 ### 6.2 電源系統分離アーキテクチャ (3系統 MT3608 昇圧設計)
 
@@ -287,40 +335,165 @@ DCモーターの逆起電力ノイズやサーボ突入電流によるマイコ
 
 ## 7. 通信プロトコル仕様 & エラーハンドリング (Communication Protocol Specifications)
 
-### 7.1 SPI Master-Slave パケット通信 (`MSprotocol.md` 準拠)
+### 7.1 SPI Master-Slave 双方向通信シーケンス (`MSprotocol.md` 拡張仕様)
 
-Raspberry Pi Zero (**M: Master**) と ESP32 (**S: Slave**) 間の通信シーケンス:
+Raspberry Pi Zero (**M: Master**) と ESP32 (**S: Slave**) は全二重 (Full-Duplex) SPI通信を行い、**ESP32からのデータ送信・ACK返信・推論制御値フィードバック (Slave → Master: S → M) は MISO ライン および Handshake (SPI_READY) ピン** を通じて行われます。
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant M as Raspberry Pi Zero (Master)
+    participant HS as Handshake (SPI_READY: GPIO22/25)
     participant S as ESP32 (Slave)
 
     Note over M, S: 【1サイクル目: 初期化 & ハンドシェイク】
+    S ->> HS: HIGH アサート (ESP32 SPI受信・ACK準備完了)
+    M ->> M: Handshake HIGH 検知 (SCLK送出可能状態)
     M --) S: CSピン LOW
-    M ->> S: INIパケット (画像サイズ, チャンク総数, ヘッダ情報)
-    S -->> M: ACKパケット (受信準備完了)
+    M ->> S: [MOSI] INIパケット (画像サイズ, チャンク総数, ヘッダ情報)
+    S -->> M: [MISO] ACKパケット (受信準備完了)
+    M --) S: CSピン HIGH
+    S ->> HS: LOW デアサート (転送完了)
 
-    Note over M, S: 【2サイクル目: データ送信 (3分割チャンク転送)】
+    Note over M, S: 【2サイクル目: データ送信 & チャンクACK】
     loop チャンク転送 (1〜3)
-        M ->> S: STRパケット 1 (Chunk 1: 4KB Base64データ)
-        M ->> S: STRパケット 2 (Chunk 2: 4KB Base64データ)
-        M ->> S: STRパケット 3 (Chunk 3: 4KB Base64データ)
-        S -->> M: ACKパケット (受信ブロック確認 & チェックサム照合)
+        S ->> HS: HIGH アサート (次チャンク受信待機完了)
+        M --) S: CSピン LOW
+        M ->> S: [MOSI] STRパケット (4KB Base64データ)
+        S -->> M: [MISO] (ダミーまたは直前ステータス)
+        M --) S: CSピン HIGH
+        S ->> HS: LOW デアサート
+        
+        Note right of S: チェックサム検証 & ACKバッファ準備
+        S ->> HS: HIGH アサート (ACK送出準備完了)
+        M --) S: CSピン LOW
+        M ->> S: [MOSI] クロック供給 (ダミー送信 [0]*ACK_SIZE)
+        S -->> M: [MISO] ACKパケット (受信ブロック確認 & チェックサム照合)
+        M --) S: CSピン HIGH
+        S ->> HS: LOW デアサート
     end
 
-    Note over M, S: 【3サイクル目: 終了確認 & 制御値返信】
-    M ->> S: FINパケット (転送完了通知)
-    S -->> M: ACKパケット (最新の速度 speed / 舵角 angle 制御値を同梱)
+    Note over M, S: 【3サイクル目: 終了確認 & 制御値フィードバック (S → M)】
+    S ->> HS: HIGH アサート (FIN受信待機完了)
+    M --) S: CSピン LOW
+    M ->> S: [MOSI] FINパケット (全チャンク送信完了通知)
+    M --) S: CSピン HIGH
+    S ->> HS: LOW デアサート
+    
+    Note right of S: サーバー推論結果 (speed/angle) をtx_bufにセット
+    S ->> HS: HIGH アサート (制御値ACK準備完了)
+    M --) S: CSピン LOW
+    M ->> S: [MOSI] クロック供給 (ダミー送信 [0]*ACK_SIZE)
+    S -->> M: [MISO] 制御値フィードバックACK (speed, angle, status)
+    M --) S: CSピン HIGH
+    S ->> HS: LOW デアサート
+    Note left of M: 制御値を ik-motor.py に渡しモーター/サーボ駆動
 ```
 
-### 7.2 パケット欠落時の自動復旧シーケンス
+---
 
-1. **INI 欠落:** M が 500ms タイムアウトで再送。3回連続失敗でフェイルセーフ発動（車両緊急停止）。
-2. **STR チャンク欠落:** S が受信データ長またはチェックサム不一致を検知し、ACK に損失チャンク番号を含めて返信。M は該当チャンクのみをピンポイント再送。
-3. **FIN 欠落:** M が 200ms タイムアウトで FIN を再送（最大3回）。
-4. **最終 ACK 欠落:** S は ACK 送出後に終了待機。M は 200ms タイムアウト経過で安全に次回サイクルへ移行。
+### 7.2 Slave → Master (S → M) 通信の成立要件 (Requirements for S → M Transmission)
+
+スレーブ（ESP32）からマスター（RPi Zero）へACKや推論制御値を正しく伝送するためには、一般的なSPIマスター送信とは異なる以下の**4大要件**を満たす必要があります。
+
+#### 1. クロック同期とダミー送出要件 (Master-Driven Clocking)
+- **物理的制約:** SPI通信において、クロック (SCLK) はマスター（RPi Zero）のみが生成・出力可能です。スレーブ（ESP32）は送信したいデータが存在しても自発的に送信を開始できません。
+- **要件:** スレーブからデータを吸い出す場合、RPi Zero は CS を LOW に落とした上で、**`spi.xfer2([0] * ACK_BUFFER_SIZE)` によりダミーバイト列を送信して SCLK クロックを供給** しなければなりません。このクロックに同期して ESP32 の MISO シフトレジスタからデータが押し出されます。
+
+#### 2. スレーブ側の事前バッファ展開要件 (`t.tx_buffer`)
+- **ESP-IDFドライバ制約:** ESP32 の `spi_slave` ドライバは、マスターから SCLK クロックが入力される**前**に、送信バッファ `tx_buf` を割り当てて `spi_slave_transmit()` を実行し、DMA受信・送信待機状態に入っていなければなりません。
+- **要件:** 
+  - `esp32.ino` 内で `spi_slave_transaction_t t;` の `t.tx_buffer = tx_buf;` を必ず定義する。
+  - 送信バッファは 4バイトアライメント (`WORD_ALIGNED_ATTR uint8_t tx_buf[ACK_BUFFER_SIZE];`) を遵守する。
+
+#### 3. Handshake (SPI_READY) 信号による状態同期要件
+- **課題:** マスターがスレーブの準備完了を待たずに SCLK クロックを送出すると、スレーブ側でバッファアンダーランやデータ化け（0xFF や 0x00 の連続受信）が発生し、通信がデッドロックします。
+- **要件:**
+  - ESP32 は `t.tx_buffer` および `t.rx_buffer` をセットして `spi_slave_transmit()` を呼び出す直前に、**`SPI_READY` (GPIO 22) を HIGH にアサート** します。
+  - RPi Zero (`Raspi_spi_master.py`) は GPIO 25 (Pin 22) の HIGH をポーリングまたはエッジ割り込みで検知してから `xfer2()` を実行します。
+  - 転送完了後、ESP32 は `SPI_READY` を LOW に戻します。
+
+#### 4. パケットバッファ長のアライメントとサイズ確定 (`ACK_BUFFER_SIZE`)
+- **要件:** RPi Zero が発行する読み出し長と、ESP32 が転送する `tx_buf` のサイズが不一致の場合、DMAバッファポインタがずれ、後続のパケット全体が破損します。
+- **確定値:** **`ACK_BUFFER_SIZE = 256` バイト（固定長）** と定義し、パケット終端には NULL 終端文字 (`\0`) またはパディングゼロを付与してサイズを固定します。
+
+---
+
+### 7.3 Slave → Master (S → M) 送信パケット仕様 (S → M Packet Formats)
+
+ESP32 (Slave) から RPi Zero (Master) へ MISO 経由で返送されるJSONパケットは、すべて以下の共通スキーマ（固定256バイト長）に従います。
+
+#### ① 通常ACKパケット (INI/STR 受信正常時)
+```json
+{
+  "header": {
+    "type": "ACK",
+    "status": "OK",
+    "seq": 1
+  },
+  "body": {
+    "ack_chunk": 1,
+    "received_checksum": 174
+  },
+  "footer": {
+    "checksum": 88
+  }
+}
+```
+
+#### ② 再送要求 (NACK / RESEND_REQ) パケット (STR 欠落・チェックサムエラー時)
+```json
+{
+  "header": {
+    "type": "ACK",
+    "status": "RESEND_REQ",
+    "seq": 2
+  },
+  "body": {
+    "resend_chunk": 2,
+    "reason": "checksum_mismatch"
+  },
+  "footer": {
+    "checksum": 121
+  }
+}
+```
+
+#### ③ 制御値フィードバックパケット (FIN受信後 / サーバー推論結果返信)
+```json
+{
+  "header": {
+    "type": "ACK",
+    "status": "CONTROL_READY",
+    "seq": 3
+  },
+  "body": {
+    "speed": 160,
+    "angle": 95,
+    "duration_ms": 500,
+    "reason": "Clear road ahead, maintain forward cruising."
+  },
+  "footer": {
+    "checksum": 204
+  }
+}
+```
+
+---
+
+### 7.4 パケット欠落時の自動復旧シーケンス & エラーハンドリング
+
+1. **INI 欠落 / Handshake未検知:** 
+   - M は Handshake HIGH を最大 500ms 待機。検知できない場合は CS 再初期化後に INI を再送（最大3回）。
+   - 3回連続失敗時は「エッジ間通信喪失」と判定しフェイルセーフ発動（車両緊急停止）。
+2. **STR チャンク欠落:** 
+   - S がパケット長不足またはチェックサム不一致を検知した場合、S→M の ACK に `status: "RESEND_REQ"` および `resend_chunk` 番号を格納して返信。
+   - M は該当チャンクのみをピンポイント再送（最大3回）。
+3. **FIN 欠落:** 
+   - M が 200ms タイムアウトで FIN を再送（最大3回）。
+4. **最終制御値 ACK (S → M) 欠落 / 破損:** 
+   - M がダミークロック送出後、MISOから受信したデータのチェックサムを照合。
+   - チェックサム不一致または受信タイムアウト (200ms) 時は、前回サイクルの制御値を引き継がず、安全のために速度 `speed = 0`, 舵角 `angle = 90`（直進ニュートラル停止）のフェイルセーフを適用。
 
 ---
 
@@ -386,14 +559,34 @@ sequenceDiagram
    // 修正後:
    const int rec_type = received_doc["header"]["type"] | -1;
    ```
+4. **Slave → Master 送信バッファ (`tx_buf`) & Handshake信号 (GPIO 22) の追加:**
+   ```c
+   #define SPI_HANDSHAKE 22
+   #define ACK_BUFFER_SIZE 256
+   WORD_ALIGNED_ATTR uint8_t tx_buf[ACK_BUFFER_SIZE];
 
-### Step 2: `programs/raspberry-pi-zero/ik-motor.py` のピン設定
+   // setup() 内:
+   pinMode(SPI_HANDSHAKE, OUTPUT);
+   digitalWrite(SPI_HANDSHAKE, LOW);
+
+   // loop() 内 (送信バッファセット & Handshake アサート):
+   t.tx_buffer = tx_buf; // Slave -> Master 送信用バッファを割り当て
+   digitalWrite(SPI_HANDSHAKE, HIGH); // Masterへ準備完了を通知
+   esp_err_t ret = spi_slave_transmit(VSPI_HOST, &t, portMAX_DELAY);
+   digitalWrite(SPI_HANDSHAKE, LOW);  // 転送完了
+   ```
+
+### Step 2: `programs/raspberry-pi-zero/ik-motor.py` & `Raspi_spi_master.py` の設定
 ```python
-# 実機ハードウェアに合わせた確定GPIO割り当て
+# 1. ik-motor.py: 実機ハードウェアに合わせた確定GPIO割り当て
 MOTOR_ENA_PIN = 12   # PWM0 (速度制御)
 MOTOR_IN1_PIN = 5    # 方向制御 1
 MOTOR_IN2_PIN = 6    # 方向制御 2
 SERVO_PIN     = 13   # PWM1 (MG90S 舵角制御)
+
+# 2. Raspi_spi_master.py: Slave->Master 通信要件の確定
+ACK_BUFFER_SIZE = 256 # ESP32側固定バッファ長と厳密一致
+HANDSHAKE_PIN   = 25  # BCM 25 (Pin 22: ESP32 GPIO 22 からの SPI_READY 入力)
 ```
 
 ### Step 3: サーバー環境の即時起動と検証
@@ -418,7 +611,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 | リスク事象 | 影響度 | 発生確率 | 予防対策 (Mitigation) | 回避・コンティンジェンシープラン (Contingency) |
 |---|:---:|:---:|---|---|
-| **SPI通信のデバッグ難航** | 高 | 高 | パケット長を固定長 (4096B) にし、ヘッダ整合性チェックを厳格化。 | **【Plan B 発動】** Day 6 時点で未解決なら、RPi Zero WのWi-Fiを直接有効化しサーバーへ直接WS接続する。 |
+| **SPI通信のデバッグ難航** | 高 | 高 | パケット長を固定長 (4096B) にし、ヘッダ整合性チェックを厳格化。 | **【Plan B 発動】** Day 6 時点で未解決なら、RPi-ESP32間通信を全廃し「ESP32単体制御 ＋ スマホ車載カメラ」に即日移行。さらにネットワーク不調時は「RPi Zero ローカルOpenCV走行 (Plan C)」を発動。 |
 | **モーターノイズによるマイコンリセット** | 高 | 中 | MT3608を3基完全分離し、ロジック電源ラインに470μF電解コンデンサを挿入。 | モーター端子に0.1μFセラミックコンデンサを半田付けし高周波ノイズをバイパス。 |
 | **Gemini APIの推論遅延増大 (>1.0s)** | 中 | 中 | `thinking_budget=0`、画像解像度160×120/品質50の極小化。 | 1推論あたりの走行持続時間 `DURATION_MS` を動的に延長、または前回操舵角を維持。 |
 | **ステアリング機構のガタつき・中立ずれ** | 中 | 高 | 3Dプリントパーツ嵌合部にシムワッシャー挿入、サーボホーン固定ネジをネジロック塗布。 | ソフトウェア側の `CAR_STEER_CENTER` (中立値) を 90° からオフセット調整可能とする。 |
