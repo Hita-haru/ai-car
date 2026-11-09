@@ -1,0 +1,43 @@
+自動起動について
+ラズパイのosが起動したら自動でプログラムを開始するためのシステム
+
+事前準備
+自動起動用にサービスファイルを作ってね
+sudo nano /etc/systemd/system/raspi-car.service
+
+ユーザー名とpythonの場所、プログラムのフォルダなどの場所も確認してね
+
+サービスファイルの中身
+
+[Unit]
+Description=Raspberry Pi Autonomous Car
+After=multi-user.target
+
+[Service]
+Type=simple
+User=ユーザー名（確認してね）
+WorkingDirectory=/home/pi/raspi_programs（プログラムを配置したフォルダ、推測なので確認してね）
+ExecStart=/usr/bin/python3 /home/pi/raspi_programs/raspi_main.py（Pythonの実行ファイルと raspi_main.py の場所。かくにんしてね）
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target
+
+
+自動起動を有効にするにあたってこれも順番に実行してね
+sudo systemctl daemon-reload
+sudo systemctl enable raspi-car.service
+
+その他
+
+動作確認用
+sudo systemctl start raspi-car.service
+
+状況確認用
+sudo systemctl status raspi-car.service
+
+ログ確認用
+journalctl -u raspi-car.service -f
+
+os起動時の自動実行を一時的に無効にしたいとき用
+sudo systemctl disable raspi-car.service
